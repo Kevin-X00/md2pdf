@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>MD → PDF · Markdown to PDF Converter</title>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,'PingFang SC','Microsoft YaHei',sans-serif;background:#f5f3f0;color:#2c1810;min-height:100dvh}
+header{background:#2c1810;color:#f5f3f0;padding:14px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{font-size:18px;font-weight:600}
+header span{font-size:12px;opacity:.7}
+.wrap{max-width:960px;margin:0 auto;padding:12px}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;transition:.15s}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:#8b5e3c;color:#fff}
+.btn.primary:hover{background:#7a5234}
+.btn.secondary{background:#e8ddd0;color:#2c1810}
+.btn.secondary:hover{background:#ddd0c0}
+.btn:disabled{opacity:.4;cursor:default}
+.editor-row{display:flex;gap:12px}
+.editor-pane{flex:1;display:flex;flex-direction:column}
+.editor-pane label{font-size:12px;font-weight:600;color:#6b5a4e;margin-bottom:6px;display:flex;justify-content:space-between}
+.editor-pane textarea{flex:1;border:1px solid #d9cdc0;border-radius:10px;padding:14px;font-size:14px;line-height:1.7;font-family:'SF Mono','Fira Code','Consolas',monospace;resize:vertical;min-height:400px;background:#fffdf9;color:#2c1810;outline:none;tab-size:2}
+.editor-pane textarea:focus{border-color:#8b5e3c}
+.preview-pane{flex:1;display:flex;flex-direction:min-height}
+.preview-pane .preview-header{font-size:12px;font-weight:600;color:#6b5a4e;margin-bottom:6px;display:flex;justify-content:space-between}
+.preview-box{border:1px solid #d9cdc0;border-radius:10px;padding:20px 24px;background:#fffdf9;min-height:400px;overflow-y:auto;flex:1}
+.preview-box h1{font-size:24px;border-bottom:2px solid #e8ddd0;padding-bottom:8px;margin:16px 0 12px;color:#2c1810}
+.preview-box h2{font-size:20px;border-bottom:1px solid #e8ddd0;padding-bottom:6px;margin:14px 0 10px;color:#2c1810}
+.preview-box h3{font-size:17px;margin:12px 0 8px;color:#2c1810}
+.preview-box h4{font-size:15px;margin:10px 0 6px;color:#2c1810}
+.preview-box p{margin:0 0 12px;line-height:1.8;font-size:15px;color:#2c1810}
+.preview-box code{background:#f5f3f0;padding:2px 6px;border-radius:4px;font-size:13px;font-family:'SF Mono','Fira Code',monospace;color:#8b5e3c}
+.preview-box pre{background:#2c1810;color:#f5f3f0;padding:16px;border-radius:8px;overflow-x:auto;margin:12px 0;font-size:13px;line-height:1.6}
+.preview-box pre code{background:transparent;padding:0;color:#f5f3f0;font-size:13px}
+.preview-box blockquote{border-left:4px solid #8b5e3c;padding:8px 16px;margin:12px 0;background:#faf6f0;color:#6b5a4e;border-radius:0 8px 8px 0}
+.preview-box blockquote p{margin:0}
+.preview-box ul,.preview-box ol{padding-left:24px;margin:0 0 12px;line-height:1.8}
+.preview-box li{margin:4px 0}
+.preview-box table{border-collapse:collapse;width:100%;margin:12px 0;font-size:14px}
+.preview-box th{background:#2c1810;color:#f5f3f0;padding:8px 12px;text-align:left;font-weight:600}
+.preview-box td{border-bottom:1px solid #e8ddd0;padding:8px 12px}
+.preview-box hr{border:none;border-top:2px solid #e8ddd0;margin:20px 0}
+.preview-box a{color:#8b5e3c;text-decoration:underline}
+.preview-box img{max-width:100%;border-radius:8px;margin:8px 0}
+.preview-box del{color:#999}
+@media(max-width:720px){.editor-row{flex-direction:column}.editor-pane textarea,.preview-box{min-height:250px}}
+</style>
+</head>
+<body>
+<header>
+<h1>📄 MD → PDF</h1>
+<span>Markdown to PDF Converter · 纯浏览器端 · 排版优美</span>
+</header>
+<div class="wrap">
+
+<div class="btn-row">
+<button class="btn primary" id="pdfBtn" onclick="exportPDF()">📥 下载 PDF</button>
+<button class="btn secondary" onclick="loadSample()">📄 示例文档</button>
+<button class="btn secondary" onclick="clearAll()">🗑 清空</button>
+<label class="btn secondary" style="cursor:pointer">📂 导入 .md 文件
+  <input type="file" accept=".md,.markdown,.txt" onchange="loadFile(event)" style="display:none">
+</label>
+</div>
+
+<div class="editor-row">
+<div class="editor-pane">
+<label>
+  <span>✏️ Markdown 编辑</span>
+  <span id="charCount">0 字符</span>
+</label>
+<textarea id="editor" oninput="livePreview()" placeholder="在此输入 Markdown...&#10;&#10;# 标题&#10;正文内容..."></textarea>
+</div>
+<div class="preview-pane">
+<div class="preview-header">
+  <span>👁 实时预览</span>
+  <span id="previewInfo"></span>
+</div>
+<div class="preview-box" id="preview"><p style="color:#6b5a4e">输入 Markdown 后实时预览…</p></div>
+</div>
+</div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/15.0.7/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.3/html2pdf.bundle.min.js"></script>
+<script>
+var editor=document.getElementById('editor');
+var preview=document.getElementById('preview');
+var charCount=document.getElementById('charCount');
+var previewInfo=document.getElementById('previewInfo');
+
+// Set up marked
+marked.setOptions({
+  breaks:true,
+  gfm:true,
+});
+
+// Sample
+function loadSample(){
+  editor.value=`# Markdown → PDF 转换指南
+
+## 快速开始
+
+只需在左侧编辑区输入 Markdown，右侧实时预览，点击 **下载 PDF** 即可导出。
+
+## 文本样式
+
+- **加粗文字** 和 *斜体文字*
+- \`行内代码\` 和代码块
+- ~~删除线~~ 和 [链接](https://example.com)
+
+## 代码块
+
+\`\`\`javascript
+function hello(name) {
+  console.log(\`你好, \${name}!\`);
+}
+hello("世界");
+\`\`\`
+
+## 引用
+
+> 排版即思想的外衣。
+> 好的排版让文字自己说话。
+
+## 表格
+
+| 功能 | 状态 | 备注 |
+|------|------|------|
+| 实时预览 | ✅ | 支持 GFM |
+| 导出 PDF | ✅ | A4 排版 |
+| 代码高亮 | ✅ | 暗色主题 |
+| 中文支持 | ✅ | CJK 字体 |
+
+## 列表
+
+1. 编辑 Markdown
+2. 实时预览效果
+3. 一键导出 PDF
+
+- 无服务器依赖
+- 纯浏览器运行
+- 隐私安全
+
+---
+
+> ✨ 写于 2026年 · MD → PDF Converter
+`;
+  livePreview();
+}
+
+function clearAll(){
+  if(editor.value&&!confirm('确定清空？')) return;
+  editor.value='';
+  livePreview();
+}
+
+function loadFile(e){
+  var file=e.target.files[0];
+  if(!file) return;
+  var reader=new FileReader();
+  reader.onload=function(){editor.value=reader.result;livePreview();};
+  reader.readAsText(file);
+  e.target.value='';
+}
+
+// Live preview
+function livePreview(){
+  var text=editor.value||'';
+  charCount.textContent=text.length+' 字符';
+  if(!text.trim()){
+    preview.innerHTML='<p style="color:#6b5a4e">输入 Markdown 后实时预览…</p>';
+    previewInfo.textContent='0 词';
+    return;
+  }
+  try{
+    var html=marked.parse(text);
+    preview.innerHTML=html;
+    previewInfo.textContent=Math.ceil(text.split(/\s+/).filter(Boolean).length)+' 词';
+  }catch(e){
+    preview.innerHTML='<p style="color:#e25555">渲染错误: '+e.message+'</p>';
+  }
+}
+
+// Export PDF
+function exportPDF(){
+  var text=editor.value.trim();
+  if(!text){alert('请先输入 Markdown 内容');return;}
+
+  var btn=document.getElementById('pdfBtn');
+  btn.disabled=true;
+  btn.textContent='⏳ 生成中…';
+
+  var htmlContent=marked.parse(text);
+
+  // Build a beautifully styled HTML page for PDF
+  var pdfHtml='<!DOCTYPE html><html><head><meta charset="UTF-8">';
+  pdfHtml+='<style>';
+  pdfHtml+=`
+    @page{margin:2.2cm 2.5cm 2.5cm}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:"Noto Serif CJK SC","Source Han Serif CN","STSong","SimSun","Songti SC",Georgia,serif;color:#1a1a1a;line-height:1.8;font-size:12pt;padding:0}
+    h1{font-size:22pt;border-bottom:2px solid #333;padding-bottom:8px;margin:20px 0 14px;font-weight:700}
+    h2{font-size:18pt;border-bottom:1px solid #ccc;padding-bottom:6px;margin:16px 0 12px;font-weight:600}
+    h3{font-size:15pt;margin:14px 0 10px;font-weight:600}
+    h4{font-size:13pt;margin:12px 0 8px;font-weight:600}
+    p{margin:0 0 10px;text-align:justify;orphans:3;widows:3}
+    code{font-family:"JetBrains Mono","Fira Code","Consolas",monospace;font-size:10pt;background:#f4f4f4;padding:1px 4px;border-radius:3px;color:#8b5e3c}
+    pre{background:#1a1a1a;color:#e8e8e8;padding:14px 16px;border-radius:6px;overflow-x:auto;margin:10px 0;font-size:10pt;line-height:1.5;page-break-inside:avoid}
+    pre code{background:transparent;padding:0;color:#e8e8e8;font-size:10pt}
+    blockquote{border-left:3px solid #8b5e3c;padding:6px 14px;margin:10px 0;color:#555;font-style:italic}
+    blockquote p{margin:0}
+    ul,ol{padding-left:22px;margin:0 0 10px}
+    li{margin:3px 0}
+    table{border-collapse:collapse;width:100%;margin:12px 0;font-size:10.5pt;page-break-inside:avoid}
+    th{background:#1a1a1a;color:#fff;padding:6px 10px;text-align:left;font-weight:600}
+    td{border-bottom:1px solid #ddd;padding:6px 10px}
+    tr:nth-child(even){background:#f9f9f9}
+    hr{border:none;border-top:1px solid #ccc;margin:20px 0}
+    a{color:#8b5e3c;text-decoration:none}
+    img{max-width:100%;margin:8px 0}
+    del{color:#999}
+    table{border-collapse:collapse;width:100%}
+  `;
+  pdfHtml+='</style></head><body>';
+  pdfHtml+=htmlContent;
+  pdfHtml+='</body></html>';
+
+  // Create iframe for rendering
+  var iframe=document.createElement('iframe');
+  iframe.style.position='absolute';
+  iframe.style.left='-9999px';
+  iframe.style.width='800px';
+  iframe.style.height='600px';
+  document.body.appendChild(iframe);
+
+  iframe.contentDocument.open();
+  iframe.contentDocument.write(pdfHtml);
+  iframe.contentDocument.close();
+
+  // Wait for fonts to load then print
+  setTimeout(function(){
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+
+    // Cleanup
+    setTimeout(function(){
+      document.body.removeChild(iframe);
+      btn.disabled=false;
+      btn.textContent='📥 下载 PDF';
+    }, 1000);
+  }, 500);
+}
+
+// Initialize with sample
+loadSample();
+</script>
+</body>
+</html>
